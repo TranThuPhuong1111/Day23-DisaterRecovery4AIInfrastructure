@@ -29,13 +29,62 @@ URL = {"a": "http://127.0.0.1:8001", "b": "http://127.0.0.1:8002"}
 
 
 def probe(region: str, timeout: float) -> tuple[bool, str]:
-    """TODO: trả về (ready, reason). Timeout PHẢI có — netblock làm request treo mãi."""
-    raise NotImplementedError
+    """Trả về (ready, reason). Timeout PHẢI có — netblock làm request treo mãi."""
+    try:
+        r = httpx.get(f"{URL[region]}/readyz", timeout=timeout)
+    except httpx.TimeoutException:
+        return False, f"timeout>{timeout}s"
+    except Exception as e:  # ConnectError khi process chết (mode stop)
+        return False, type(e).__name__
+    if r.status_code == 200:
+        return True, "ready"
+    try:
+        reasons = r.json().get("reasons") or []
+    except ValueError:
+        reasons = []
+    return False, f"http_{r.status_code}:" + ",".join(reasons)
 
 
 def run(interval: float, timeout: float, threshold: int, duration: float, out: pathlib.Path):
-    """TODO: vòng lặp poll + phát hiện transition + ghi JSONL."""
-    raise NotImplementedError
+    """Vòng lặp poll + phát hiện transition + ghi JSONL (chỉ khi đổi trạng thái)."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    # None = chưa biết. Lần đầu probe chỉ "khởi tạo" trạng thái, không tính là transition
+    # -> region phụ đang warm (503) lúc start không bị log là outage.
+    state = {r: None for r in URL}
+    fails = {r: 0 for r in URL}
+    oks = {r: 0 for r in URL}
+    end = time.time() + duration
+    with out.open("a") as f:
+        def emit(**kw):
+            rec = {"ts": time.time(), "iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+                   "interval_s": interval, "threshold": threshold, **kw}
+            f.write(json.dumps(rec) + "\n")
+            f.flush()
+            print("HEALTH", json.dumps(rec))
+
+        emit(event="start", timeout_s=timeout, duration_s=duration,
+             detect_floor_s=round(interval * threshold, 2))
+        while time.time() < end:
+            t = time.time()
+            for region in URL:
+                ok, reason = probe(region, timeout)
+                if ok:
+                    oks[region] += 1
+                    fails[region] = 0
+                else:
+                    fails[region] += 1
+                    oks[region] = 0
+                # Chống flapping: chỉ đổi trạng thái sau `threshold` lần LIÊN TIẾP.
+                if not ok and fails[region] >= threshold and state[region] != "UNHEALTHY":
+                    prev, state[region] = state[region], "UNHEALTHY"
+                    emit(event="state_change", region=region, frm=prev, to="UNHEALTHY",
+                         reason=reason, consecutive_fails=fails[region])
+                elif ok and oks[region] >= threshold and state[region] != "HEALTHY":
+                    prev, state[region] = state[region], "HEALTHY"
+                    emit(event="state_change", region=region, frm=prev, to="HEALTHY",
+                         reason=reason, consecutive_oks=oks[region])
+            time.sleep(max(0.0, interval - (time.time() - t)))
+        emit(event="stop", final_state=state)
 
 
 if __name__ == "__main__":

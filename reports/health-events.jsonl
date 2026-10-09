@@ -1,0 +1,6 @@
+{"ts": 1791550760.372952, "iso": "2026-10-09T12:59:20", "interval_s": 5.0, "threshold": 3, "event": "start", "timeout_s": 2.0, "duration_s": 100.0, "detect_floor_s": 15.0}
+{"ts": 1791550770.396488, "iso": "2026-10-09T12:59:30", "interval_s": 5.0, "threshold": 3, "event": "state_change", "region": "a", "frm": null, "to": "HEALTHY", "reason": "ready", "consecutive_oks": 3}
+{"ts": 1791550770.437262, "iso": "2026-10-09T12:59:30", "interval_s": 5.0, "threshold": 3, "event": "state_change", "region": "b", "frm": null, "to": "UNHEALTHY", "reason": "http_503:pool_state=warm,model_weights_missing,vector_db_empty(count=0)", "consecutive_fails": 3}
+{"ts": 1791550787.3893917, "iso": "2026-10-09T12:59:47", "interval_s": 5.0, "threshold": 3, "event": "state_change", "region": "a", "frm": "HEALTHY", "to": "UNHEALTHY", "reason": "timeout>2.0s", "consecutive_fails": 3}
+{"ts": 1791550807.426282, "iso": "2026-10-09T13:00:07", "interval_s": 5.0, "threshold": 3, "event": "state_change", "region": "b", "frm": "UNHEALTHY", "to": "HEALTHY", "reason": "ready", "consecutive_oks": 3}
+{"ts": 1791550860.3765755, "iso": "2026-10-09T13:01:00", "interval_s": 5.0, "threshold": 3, "event": "stop", "final_state": {"a": "UNHEALTHY", "b": "HEALTHY"}}
